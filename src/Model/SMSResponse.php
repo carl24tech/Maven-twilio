@@ -4,6 +4,7 @@ namespace TwilioSMS\Model;
 
 use Twilio\Rest\Api\V2010\Account\MessageInstance;
 use DateTime;
+use InvalidArgumentException;
 
 class SMSResponse
 {
@@ -14,30 +15,47 @@ class SMSResponse
     private string $body;
     private ?DateTime $dateCreated;
     private ?DateTime $dateSent;
-    private ?int $price;
+    private ?float $price;  // Changed from ?int to ?float
     private ?string $priceUnit;
     private ?string $errorCode;
     private ?string $errorMessage;
 
+    private function __construct() {}
+
     public static function fromTwilioMessage(MessageInstance $message): self
     {
+        if (empty($message->sid)) {
+            throw new InvalidArgumentException("Invalid message instance: missing SID");
+        }
+        
         $response = new self();
         $response->sid = $message->sid;
-        $response->status = $message->status;
-        $response->to = $message->to;
-        $response->from = $message->from;
-        $response->body = $message->body;
-        $response->dateCreated = $message->dateCreated;
-        $response->dateSent = $message->dateSent;
-        $response->price = $message->price ? (int)($message->price * 100) : null;
-        $response->priceUnit = $message->priceUnit;
-        $response->errorCode = $message->errorCode;
-        $response->errorMessage = $message->errorMessage;
+        $response->status = $message->status ?? 'unknown';
+        $response->to = $message->to ?? '';
+        $response->from = $message->from ?? '';
+        $response->body = $message->body ?? '';
+        $response->dateCreated = self::parseDate($message->dateCreated);
+        $response->dateSent = self::parseDate($message->dateSent);
+        $response->price = $message->price !== null ? (float)$message->price : null;
+        $response->priceUnit = $message->priceUnit ?? null;
+        $response->errorCode = $message->errorCode ?? null;
+        $response->errorMessage = $message->errorMessage ?? null;
         
         return $response;
     }
+    
+    private static function parseDate($date): ?DateTime
+    {
+        if ($date instanceof DateTime) {
+            return $date;
+        }
+        if (is_string($date) && !empty($date)) {
+            return new DateTime($date);
+        }
+        return null;
+    }
 
-    // Getters
+    // Getters (unchanged)
     public function getSid(): string { return $this->sid; }
     public function getStatus(): string { return $this->status; }
     public function getTo(): string { return $this->to; }
@@ -45,7 +63,7 @@ class SMSResponse
     public function getBody(): string { return $this->body; }
     public function getDateCreated(): ?DateTime { return $this->dateCreated; }
     public function getDateSent(): ?DateTime { return $this->dateSent; }
-    public function getPrice(): ?int { return $this->price; }
+    public function getPrice(): ?float { return $this->price; }  // Changed return type
     public function getPriceUnit(): ?string { return $this->priceUnit; }
     public function getErrorCode(): ?string { return $this->errorCode; }
     public function getErrorMessage(): ?string { return $this->errorMessage; }
@@ -57,7 +75,7 @@ class SMSResponse
     
     public function isFailed(): bool
     {
-        return in_array($this->status, ['failed', 'undelivered']);
+        return in_array($this->status, ['failed', 'undelivered'], true);
     }
     
     public function toArray(): array
