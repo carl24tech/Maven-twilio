@@ -1,64 +1,42 @@
 <?php
 
-namespace TwilioSMS\Model;
+namespace TwilioSMS;
 
-class SMSMessage
+use TwilioSMS\Model\SMSMessage;
+use TwilioSMS\Exception\TwilioException;
+
+class Client
 {
-    private string $to;
-    private string $body;
-    private ?string $from;
-
-    public function __construct(string $to, string $body, ?string $from = null)
+    private string $sid;
+    private string $token;
+    
+    public function __construct(string $sid, string $token)
     {
-        $this->validateTo($to);
-        $this->validateBody($body);
-        
-        $this->to = $to;
-        $this->body = $body;
-        $this->from = $from;
+        $this->validateSid($sid);
+        $this->sid = $sid;
+        $this->token = $token;
     }
-
-    private function validateTo(string $to): void
+    
+    private function validateSid(string $sid): void
     {
-        if (empty($to)) {
-            throw new \InvalidArgumentException("Recipient phone number cannot be empty");
-        }
-        
-        // Basic E.164 format validation
-        if (!preg_match('/^\+[1-9]\d{1,14}$/', $to)) {
-            throw new \InvalidArgumentException("Phone number must be in E.164 format (e.g., +1234567890)");
+        // Check if SID starts with 'AC' and has appropriate length
+        if (!preg_match('/^AC[a-f0-9]{32}$/i', $sid)) {
+            throw new TwilioException("Invalid Account SID format");
         }
     }
-
-    private function validateBody(string $body): void
+    
+    public function sms(): SmsService
     {
-        if (empty($body)) {
-            throw new \InvalidArgumentException("Message body cannot be empty");
-        }
-        
-        if (strlen($body) > 1600) {
-            throw new \InvalidArgumentException("Message body exceeds 1600 characters");
-        }
+        return new SmsService($this);
     }
-
-    public function getTo(): string
+    
+    public function getSid(): string
     {
-        return $this->to;
+        return $this->sid;
     }
-
-    public function getBody(): string
+    
+    public function getToken(): string
     {
-        return $this->body;
-    }
-
-    public function getFrom(): ?string
-    {
-        return $this->from;
-    }
-
-    public function setFrom(?string $from): self
-    {
-        $this->from = $from;
-        return $this;
+        return $this->token;
     }
 }
